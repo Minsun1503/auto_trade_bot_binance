@@ -1,0 +1,7 @@
+{
+    "files": [
+        "strategies/grid_strategy.py",
+        "config/settings.py"
+    ],
+    "dependencies_lockfile_hash": "6ac0947a1288ef3ac83c679f1e"
+}

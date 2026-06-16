@@ -66,6 +66,11 @@
   - Tích hợp cơ chế tính toán SHA-256 Checksum từ `strategy_manifest.json` phục vụ Code Freeze.
   - Xây dựng unit test kiểm định trong `tests/test_validation.py`.
 
+- **Phase 3.5E: Reporter Integration**:
+  - Hiện thực hóa `scripts/run_strategy_validation.py` thu thập kết quả, chạy giả lập Monte Carlo, DCA, Buy & Hold và xuất báo cáo Markdown hoàn chỉnh ra file `strategy_validation_report.md`.
+  - Tích hợp cảnh báo vi phạm Hard Gates trực quan trên console CLI.
+  - Xác thực thành công pipeline kiểm định bằng lệnh `--sample-only` trên dữ liệu rút gọn.
+
 ## 2. Những "đặc sản" logic vừa tìm thấy (Crucial Context)
 - **Clock Sync offset**: Bắt buộc lưu trữ `exchange_time_offset_ms` để đồng bộ hóa các lệnh gọi API có ký (signature) trong CCXT.
 - **Rebuild Supremacy**: Không tin Ledger khi đối chiếu chéo; danh sách lịch sử trade của sàn là sự thật tối cao nhất để sinh ra Position hiện tại.
@@ -73,9 +78,12 @@
 - **Crypto-centric Metrics Annualization**: Đối với thị trường Crypto, hệ số chuẩn hóa theo năm là 365 ngày (thay vì 252 ngày như chứng khoán truyền thống).
 - **Spot Ruin Safety**: Trong mô phỏng Spot Monte Carlo, giá trị tài sản ròng tối thiểu được giới hạn ở 0.0 (không thể có nợ âm), giúp các thước đo drawdown không vượt quá 100% một cách phi thực tế.
 - **Independent Roundtrip Trade Consolidation**: Các trades được gom nhóm dựa trên sự thay đổi của net position từ 0 sang khác 0 và trở lại 0 để tính toán số lượng giao dịch độc lập chính xác nhất.
+- **Dynamic Timezone Alignment**: Đồng bộ động múi giờ giữa các nến thị trường (thường là UTC) và mốc thời gian naive datetime của runner/test suite để phòng ngừa lỗi TypeError trong Pandas.
 
 ## 3. Những việc còn dang dở (Next Steps)
-- **Phase 3.5E: Reporter Integration**: Kết xuất báo cáo đối chiếu chéo ra file `strategy_validation_report.md` dạng Markdown hoàn chỉnh.
+- **Phê duyệt báo cáo & Chạy Full Backtest 12 tháng**: Chạy pipeline không có `--sample-only` để nạp đủ dữ liệu 12 tháng đầy đủ và tiến hành tối ưu hóa tham số cho chiến lược nếu trượt cổng kiểm soát (Hard Gates).
+- **Phase 4B: Manually Order Testing**: Tiến hành test đặt/hủy lệnh thủ công với size nhỏ nhất trên Binance Testnet sau khi chiến lược được chứng minh và phê duyệt.
+
 
 
 

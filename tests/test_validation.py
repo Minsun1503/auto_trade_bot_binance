@@ -7,18 +7,33 @@ from backtest.validation import calculate_manifest_checksum, run_single_period_b
 from backtest.engine import StrategyBase
 from config.settings import DCAConfig
 
-class DummyTestStrategy(StrategyBase):
+class DummyTestStrategy:
     def __init__(self, config):
         self.config = config
+        self._running = False
         self.trade_done = False
-    def on_tick(self, tick, engine):
+        
+    def start(self, engine):
+        self._running = True
+        
+    def stop(self, engine):
+        self._running = False
+        
+    def is_running(self) -> bool:
+        return self._running
+        
+    def process_tick(self, context, timestamp, engine):
         # Mua ngay nến đầu tiên, bán nến thứ hai
         if not self.trade_done:
-            engine.execute_market_order("BUY", 1.0, tick.close, datetime.fromtimestamp(tick.timestamp / 1000.0))
+            engine.execute_market_order("BUY", 1.0, context.price, timestamp)
             self.trade_done = True
         elif self.trade_done and len(engine.ledger.trades) == 1:
-            engine.execute_market_order("SELL", 1.0, tick.close, datetime.fromtimestamp(tick.timestamp / 1000.0))
-    def get_tracked_orders(self):
+            engine.execute_market_order("SELL", 1.0, context.price, timestamp)
+            
+    def on_order_fill(self, order_id: str, side: str, price: float, quantity: float, engine):
+        pass
+        
+    def get_tracked_orders(self) -> list[str]:
         return []
 
 class TestValidation(unittest.TestCase):

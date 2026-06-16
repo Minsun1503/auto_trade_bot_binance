@@ -7,7 +7,7 @@ import os
 import json
 import hashlib
 from typing import Dict, List, Any, Type, Callable
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import pandas as pd
 import numpy as np
 
@@ -127,8 +127,46 @@ class DummyAdapter(ExecutionAdapter):
     def restore_trades(self, trades: List[Dict[str, Any]]):
         self.trades = trades
 
+class StrategyAdapter(StrategyBase):
+    """Adapter để nhúng IStrategy (như GridStrategy) vào TradingEngine"""
+    def __init__(self, strategy: Any):
+        self.strategy = strategy
+        self.prices = []
+        self.max_high = 0.0
+        
+    def on_tick(self, tick: TickEvent, engine: TradingEngine):
+        price = tick.close
+        self.prices.append(price)
+        if tick.high > self.max_high:
+            self.max_high = tick.high
+            
+        ma50 = sum(self.prices[-50:]) / min(50, len(self.prices)) if self.prices else price
+        ma200 = sum(self.prices[-200:]) / min(200, len(self.prices)) if self.prices else price
+        
+        drawdown = (self.max_high - price) / self.max_high if self.max_high > 0 else 0.0
+        spread = (tick.high - tick.low) / tick.low if tick.low > 0 else 0.0
+        
+        from strategies.context import MarketContext
+        context = MarketContext(
+            price=price,
+            ma50=ma50,
+            ma200=ma200,
+            drawdown=drawdown,
+            volatility=0.0,
+            spread=spread
+        )
+        if not self.strategy.is_running():
+            self.strategy.start(engine)
+        self.strategy.process_tick(context, datetime.fromtimestamp(tick.timestamp / 1000.0), engine)
+        
+    def on_order_fill(self, order_id: str, side: str, fill_price: float, quantity: float, engine: TradingEngine):
+        self.strategy.on_order_fill(order_id, side, fill_price, quantity, engine)
+        
+    def get_tracked_orders(self) -> List[str]:
+        return self.strategy.get_tracked_orders()
+
 def run_single_period_backtest(
-    strategy_class: Type[StrategyBase],
+    strategy_class: Type[Any],
     strategy_config: Any,
     data: pd.DataFrame,
     start_date: datetime,
@@ -141,7 +179,8 @@ def run_single_period_backtest(
     Chạy backtest trên 1 phân đoạn thời gian (có tính Warmup).
     """
     # Khởi tạo Strategy và Engine
-    strategy = strategy_class(strategy_config)
+    strategy_instance = strategy_class(strategy_config)
+    strategy = StrategyAdapter(strategy_instance)
     adapter = DummyAdapter()
     engine = TradingEngine(initial_capital=initial_capital, strategy=strategy, execution_adapter=adapter, symbol=symbol)
     
@@ -180,7 +219,13 @@ def run_single_period_backtest(
     # 1. Lọc trades
     cropped_trades = []
     for t in engine.ledger.trades:
-        t_time = datetime.fromtimestamp(t.timestamp / 1000.0) if isinstance(t.timestamp, (int, float)) else t.timestamp
+        t_time = datetime.fromtimestamp(t.timestamp / 1000.0, tz=timezone.utc) if isinstance(t.timestamp, (int, float)) else t.timestamp
+        if start_date.tzinfo is None:
+            if t_time.tzinfo is not None:
+                t_time = t_time.replace(tzinfo=None)
+        else:
+            if t_time.tzinfo is None:
+                t_time = t_time.replace(tzinfo=timezone.utc)
         if t_time >= start_date:
             cropped_trades.append(t)
     
@@ -221,7 +266,18 @@ def run_single_period_backtest(
         roundtrip_pnls.append(pnl_accumulated)
         
     # 2. Lọc equity curve
-    snapshots = [s for s in engine.ledger.snapshots if s.timestamp >= start_date]
+    snapshots = []
+    for s in engine.ledger.snapshots:
+        s_time = s.timestamp
+        if start_date.tzinfo is None:
+            if s_time.tzinfo is not None:
+                s_time = s_time.replace(tzinfo=None)
+        else:
+            if s_time.tzinfo is None:
+                s_time = s_time.replace(tzinfo=timezone.utc)
+        if s_time >= start_date:
+            snapshots.append(s)
+            
     if not snapshots and len(engine.ledger.snapshots) > 0:
         snapshots = [engine.ledger.snapshots[-1]]
         
