@@ -60,16 +60,23 @@
   - Đo lường và kết xuất các phân vị Drawdown (P50, P95, P99, Worst) và các xác suất sụt giảm tài sản (Prob of DD > 25% và > 50%), đảm bảo an toàn vốn (Spot max 0.0 cap).
   - Xây dựng unit test kiểm thử toàn diện trong `tests/test_monte_carlo.py`.
 
+- **Phase 3.5D: Validation Runner**:
+  - Hiện thực hóa `backtest/validation.py` làm trình điều phối chạy độc lập 3 tập dữ liệu.
+  - Triển khai thuật toán gom nhóm giao dịch độc lập (Roundtrip Trade Consolidation) để tính toán chính xác số lượng trades thực tế.
+  - Tích hợp cơ chế tính toán SHA-256 Checksum từ `strategy_manifest.json` phục vụ Code Freeze.
+  - Xây dựng unit test kiểm định trong `tests/test_validation.py`.
+
 ## 2. Những "đặc sản" logic vừa tìm thấy (Crucial Context)
 - **Clock Sync offset**: Bắt buộc lưu trữ `exchange_time_offset_ms` để đồng bộ hóa các lệnh gọi API có ký (signature) trong CCXT.
 - **Rebuild Supremacy**: Không tin Ledger khi đối chiếu chéo; danh sách lịch sử trade của sàn là sự thật tối cao nhất để sinh ra Position hiện tại.
 - **Tolerance Epsilon**: Epsilon dung sai phải lưu trữ tại config vì mỗi symbol (BTC vs DOGE) có bước giá và mức độ làm tròn khác nhau.
 - **Crypto-centric Metrics Annualization**: Đối với thị trường Crypto, hệ số chuẩn hóa theo năm là 365 ngày (thay vì 252 ngày như chứng khoán truyền thống).
 - **Spot Ruin Safety**: Trong mô phỏng Spot Monte Carlo, giá trị tài sản ròng tối thiểu được giới hạn ở 0.0 (không thể có nợ âm), giúp các thước đo drawdown không vượt quá 100% một cách phi thực tế.
+- **Independent Roundtrip Trade Consolidation**: Các trades được gom nhóm dựa trên sự thay đổi của net position từ 0 sang khác 0 và trở lại 0 để tính toán số lượng giao dịch độc lập chính xác nhất.
 
 ## 3. Những việc còn dang dở (Next Steps)
-- **Phase 3.5D: Validation Runner**: Hiện thực hóa `backtest/validation.py` với các cổng Hard Gates, OOS Sharpe Degradation Gate, và cơ chế check SHA-256 Code Freeze qua `strategy_manifest.json`.
 - **Phase 3.5E: Reporter Integration**: Kết xuất báo cáo đối chiếu chéo ra file `strategy_validation_report.md` dạng Markdown hoàn chỉnh.
+
 
 
 
