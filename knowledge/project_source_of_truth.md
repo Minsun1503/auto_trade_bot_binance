@@ -2,53 +2,60 @@
 *Cập nhật tự động theo Quy tắc 16 (Universal Handover)*
 
 ## 1. Những gì đã hoàn thành gần nhất
-**Phase 3/4: BinanceWebSocketProvider & Dual-mode Architecture**
+**Phase 4A: Binance Testnet Read-Only & State Reconciliation**
 
-- **EventBuffer nâng cấp** (`core/event_buffer.py`):
-  - Thay `processed_event_ids` set vô hạn → `collections.OrderedDict` LRU cache (max 50k entry, tự evict entry cũ nhất).
-  - Dedup key chuẩn: `symbol + open_time + is_final` cho TickEvent (không phải chỉ timestamp). Điều này ngăn bug kinh điển: candle chưa đóng (is_final=False) và candle đã đóng (is_final=True) cùng timestamp sẽ có 2 key riêng biệt, không bị nhầm lẫn.
+- **Duy nhất hóa Identity Layer**:
+  - `TradingEngine.step()` không còn tự sinh hay can thiệp vào `event_id`. `EventBuffer._make_dedup_key` là nguồn quyền lực duy nhất định danh sự kiện.
 
-- **Global Market Watermark** (`core/runner.py`):
-  - `EngineRunner.market_watermark` là "fence" duy nhất kiểm soát tiến trình thời gian của toàn bộ hệ thống.
-  - `on_tick()` reject ngay mọi tick có `timestamp <= market_watermark` từ bất kỳ Provider nào.
-  - Watermark được cập nhật monotonically sau mỗi tick được Engine xử lý thành công.
+- **Đồng bộ Watermark**:
+  - `TradingEngine._flush_buffer` cập nhật watermark chỉ sau khi Ledger commit xong.
+  - `EngineRunner` đồng bộ `market_watermark` sau khi `engine.step()` hoàn tất để tránh race conditions.
 
-- **BinanceWebSocketProvider** (`data/providers/binance_websocket.py`):
-  - Thread model: WS Thread → on_message → normalize → dedup tại source → callback(TickEvent). Không bao giờ gọi engine.step() trực tiếp.
-  - Chỉ emit TickEvent khi `is_closed == True` (RULE 1).
-  - Heartbeat Watchdog thread: nếu > 90s không nhận message, tự force-disconnect để trigger reconnect.
-  - Reconnect loop với exponential backoff (1s → 2s → ... → 60s max).
-  - Khi reconnect: giữ nguyên `market_watermark` và buffer state → không reset Engine.
-  - Dedup nhỏ tại source (`_last_seen` set với eviction FIFO, max 1000 entries).
+- **BinanceTestnetExecutionAdapter** (`backtest/adapters/binance_testnet.py`):
+  - Kế thừa `ExecutionAdapter`, sử dụng `ccxt.binance` sandbox mode.
+  - Hoàn tất các cổng đọc dữ liệu an toàn (Read-Only): `get_balances`, `get_active_orders`, `get_trade_history`.
+  - Tính toán và cache `exchange_time_offset_ms` từ exchange clocks để phòng tránh lỗi authentication `recvWindow`.
+  - Khóa chặt các hàm gửi lệnh mua/bán/hủy bằng `TradingDisabledError("Testnet adapter running in READ_ONLY mode")`.
 
-- **Dual-mode Architecture** (`main.py`):
-  - `--mode backtest`: chỉ chạy historical Parquet (deterministic, test).
-  - `--mode warmup+live`: Phase 1 warmup từ Parquet (MA warm-up) → Phase 2 handover sang WebSocket. `market_watermark` từ Phase 1 tự động là "fence" chặn tick cũ từ WS.
-  - Factory `_build_engine_and_runner()` dùng chung cho cả 2 mode.
+- **Phân cấp Đối chiếu (Reconciliation System)**:
+  - **Light Reconciliation**: Chạy sau mỗi fill locally (< 1ms, không gọi mạng), kiểm tra cấu trúc/số dư không âm.
+  - **Full Reconciliation**: Gọi REST API sàn (khi startup, restore, reconnect, và định kỳ 60s).
+    - So khớp số dư chính xác với epsilon dung sai: `abs(ledger_btc - exchange_btc) < RECONCILE_BTC_EPSILON` (1e-8) và `abs(ledger_usdt - exchange_usdt) < RECONCILE_USDT_EPSILON` (0.01).
+    - So khớp vòng đời lệnh (Order State Machine): Map từ CCXT string sang explicit `OrderState` Enum.
+    - **Trade History Supremacy**: Rebuild position từ danh sách private trades của Exchange. Nếu lệch so với Ledger -> overwrite ledger (supremacy).
+    - **Severity levels**:
+      - Level 1 (Warning): Lệch số dư nằm trong dung sai -> Warning log.
+      - Level 2 (Protect): Lệch trạng thái lệnh hoặc số dư vượt quá tolerance -> Chuyển sang `PROTECT` mode, hủy toàn bộ lệnh, pause strategy.
+      - Level 3 (Critical): Lệch cấu trúc Ledger/Trade rebuild -> Snapshot lập tức và Halt `EngineRunner`.
 
-- **Test suite mới** (`tests/test_websocket_chaos.py`): 6 tests, 100% pass:
-  - WS mock vs Historical: cùng giá close sequence.
-  - WS provider drop candles chưa đóng.
-  - Watermark reject tick cũ sau reconnect overlap.
-  - Dedup key: symbol+timestamp+is_final.
-  - Lag injection: EventBuffer reorder ticks lộn xộn.
-  - Out-of-order fill + late candle close: không double PnL.
+- **Smoke Test Script** (`scripts/testnet_smoke_test.py`):
+  - Đo clock offset 5 lần liên tiếp tính toán `avg_offset` và `max_offset` (báo động đỏ nếu `max_offset > 5000ms`).
+  - Kiểm tra kết nối, lấy số dư, open orders và trade history.
+
+- **Kiểm thử tự động** (`tests/test_websocket_chaos.py`):
+  - Bổ sung `test_price_gap_with_instant_fill_spike` (kiểm tra buffer xử lý burst fill nhiều lệnh cùng timestamp).
+  - Bổ sung `test_existing_position_on_startup_triggers_protect` (kiểm tra exchange có BTC mà Ledger rỗng -> kích hoạt PROTECT mode ngay lập tức).
+  - 100% test suite vượt qua thành công.
+
+- **Phase 3.5A: Core Metrics Implementation**:
+  - Tách biệt hoàn toàn logic so sánh và kiểm định chiến lược khỏi `TradingEngine` (Đảm bảo tính cô lập kiến trúc).
+  - Hoàn thiện `backtest/metrics.py` cung cấp các hàm đo lường rủi ro và hiệu năng chuyên sâu:
+    - Annualized Sharpe & Sortino dựa trên daily equity returns (chuẩn 365 ngày của crypto).
+    - Calmar Ratio, Recovery Factor, Profit Factor.
+    - Expectancy (kỳ vọng toán học của giao dịch).
+    - Exposure Ratio (tỷ lệ thời gian có vị thế, hỗ trợ phát hiện Buy & Hold trá hình).
+    - Trade Frequency (tần suất giao dịch theo ngày/tháng).
+  - Hoàn thiện bộ unit test toàn diện `tests/test_metrics.py` bao phủ tất cả các hàm chỉ số toán học.
 
 ## 2. Những "đặc sản" logic vừa tìm thấy (Crucial Context)
-- **Single Source of Truth (`TickEvent`):** timestamp = int64 epoch ms. Không dùng datetime.
-- **Buffer Watermark:** EventBuffer chặn event cũ hơn `watermark - epsilon`. Watermark monotonic.
-- **Dedup key có is_final:** `symbol_ts_True` ≠ `symbol_ts_False`. Nếu không tách, candle update và candle close sẽ lẫn nhau trong dedup.
-- **Không bao giờ snapshot Buffer:** Buffer là Transient. Snapshot chỉ lưu Ledger, Orders, trade_history.
-- **Ownership Rule (Provider Identity):**
-  - historical → chỉ dùng khi `watermark == 0` hoặc mode warmup.
-  - websocket → là nguồn chính sau khi watermark đã được thiết lập.
-  - `source` field trong TickEvent là identity tag.
+- **Clock Sync offset**: Bắt buộc lưu trữ `exchange_time_offset_ms` để đồng bộ hóa các lệnh gọi API có ký (signature) trong CCXT.
+- **Rebuild Supremacy**: Không tin Ledger khi đối chiếu chéo; danh sách lịch sử trade của sàn là sự thật tối cao nhất để sinh ra Position hiện tại.
+- **Tolerance Epsilon**: Epsilon dung sai phải lưu trữ tại config vì mỗi symbol (BTC vs DOGE) có bước giá và mức độ làm tròn khác nhau.
+- **Crypto-centric Metrics Annualization**: Đối với thị trường Crypto, hệ số chuẩn hóa theo năm là 365 ngày (thay vì 252 ngày như chứng khoán truyền thống).
 
 ## 3. Những việc còn dang dở (Next Steps)
-- **Binance Testnet Execution Adapter (Phase 4 chính):**
-  - Thay `BacktestExecutionAdapter` bằng một Adapter gọi API thật lên Binance Testnet.
-  - Implement `place_limit_order`, `cancel_order`, `get_trade_history` thông qua REST API.
-  - Reconcile order lifecycle: mở bot → query open orders từ Exchange → sync vào Ledger.
-- **WebSocket live test thực tế:**
-  - Chạy `python main.py --mode warmup+live` và để bot chạy 2-3 tiếng, theo dõi memory và reconnect behavior.
-  - Verify `market_watermark` tăng đúng hướng sau mỗi nến 1 phút.
+- **Phase 3.5B: Benchmarks Module**: Hiện thực hóa `buy_hold.py` và `daily_dca.py` độc lập dưới `backtest/benchmarks/`.
+- **Phase 3.5C: Block Bootstrap Monte Carlo**: Hiện thực hóa `backtest/monte_carlo.py` sử dụng Stationary Block Bootstrap dựa trên losing streak trung bình thực tế để giữ nguyên tương quan chuỗi thời gian.
+- **Phase 3.5D: Validation Runner**: Hiện thực hóa `backtest/validation.py` với các cổng Hard Gates, OOS Sharpe Degradation Gate, và cơ chế check SHA-256 Code Freeze qua `strategy_manifest.json`.
+- **Phase 3.5E: Reporter Integration**: Kết xuất báo cáo đối chiếu chéo ra file `strategy_validation_report.md` dạng Markdown hoàn chỉnh.
+

@@ -29,6 +29,8 @@ class PortfolioConfig:
     base_currency: str = "USDT"
     maker_fee_rate: float = 0.001
     taker_fee_rate: float = 0.001
+    reconcile_btc_epsilon: float = 1e-8
+    reconcile_usdt_epsilon: float = 0.01
 
 @dataclass
 class TelegramConfig:

@@ -339,5 +339,96 @@ class TestOutOfOrderFillLateCandleClose(unittest.TestCase):
                          "Sau duplicate fill: Ledger vẫn chỉ 1 trade")
 
 
+# ─────────────────────────────────────────────────────────────────────────────
+# Test 5: Price Gap & Instant Fill Spike
+# ─────────────────────────────────────────────────────────────────────────────
+
+class TestPriceGapAndInstantFillSpike(unittest.TestCase):
+    def test_price_gap_with_instant_fill_spike(self):
+        """
+        Price gaps, multiple fills arrive at same timestamp.
+        Ensure no double fill, no state drift, correct position total.
+        """
+        engine, strategy, adapter = _build_engine()
+        engine.event_buffer.window = 500
+        engine.event_buffer.epsilon = 10_000
+        
+        base = _ms(datetime(2024, 1, 1, 12, 0, 0))
+        
+        # 1. Place 3 buy orders
+        id1 = engine.place_limit_order("BUY", 39000.0, 0.5)
+        id2 = engine.place_limit_order("BUY", 39100.0, 0.5)
+        id3 = engine.place_limit_order("BUY", 39200.0, 0.5)
+        strategy.tracked_orders.update([id1, id2, id3])
+        
+        # 2. Simulate 3 Fills arriving instantly at the same timestamp
+        f1 = FillEvent("trd_001", id1, "BTC/USDT", "BUY", 39000.0, 0.5, 1.95, "USDT", base)
+        f2 = FillEvent("trd_002", id2, "BTC/USDT", "BUY", 39100.0, 0.5, 1.955, "USDT", base)
+        f3 = FillEvent("trd_003", id3, "BTC/USDT", "BUY", 39200.0, 0.5, 1.96, "USDT", base)
+        
+        engine._route_fill_to_buffer(f1)
+        engine._route_fill_to_buffer(f2)
+        engine._route_fill_to_buffer(f3)
+        
+        # Remove from active orders so the adapter doesn't execute them again
+        del adapter.active_orders[id1]
+        del adapter.active_orders[id2]
+        del adapter.active_orders[id3]
+        
+        # Trigger step with tick closed
+        tick = make_tick(base, 39000.0, is_closed=True)
+        engine.step(tick)
+        
+        # Step engine forward to flush the buffer (since window is 500ms)
+        tick_next = make_tick(base + 60_000, 39000.0, is_closed=True)
+        engine.step(tick_next)
+        
+        # Check Ledger position and trades count
+        pos = engine.ledger.rebuild_position("BTC/USDT")
+        self.assertAlmostEqual(pos.quantity, 1.5, places=6)
+        self.assertEqual(len(engine.ledger.trades), 3)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Test 6: Startup with Existing Position
+# ─────────────────────────────────────────────────────────────────────────────
+
+class TestStartupWithExistingPosition(unittest.TestCase):
+    def test_existing_position_on_startup_triggers_protect(self):
+        """
+        If exchange has 0.01 BTC but ledger has 0 BTC on startup,
+        Full Reconciliation should trigger Level 2 PROTECT mode.
+        """
+        engine, strategy, adapter = _build_engine()
+        engine.event_buffer.window = 0
+        
+        # Mock adapter with get_balances
+        class MockExchangeAdapter:
+            def __init__(self):
+                self.trades = []
+                self.orders = []
+            def get_balances(self):
+                return {
+                    "BTC": {"total": 0.01, "free": 0.01, "used": 0.0},
+                    "USDT": {"total": 10000.0, "free": 10000.0, "used": 0.0}
+                }
+            def get_active_orders(self, symbol):
+                return self.orders
+            def get_trade_history(self, symbol):
+                return self.trades
+                
+        engine.execution_adapter = MockExchangeAdapter()
+        
+        # Verify ledger has 0 BTC
+        pos = engine.ledger.rebuild_position("BTC/USDT")
+        self.assertEqual(pos.quantity, 0.0)
+        
+        # Run full reconciliation
+        engine.audit_full_reconciliation()
+        
+        # Expect PROTECT MODE
+        self.assertEqual(engine.reconciliation_mode, ReconciliationMode.PROTECT)
+
+
 if __name__ == "__main__":
     unittest.main()

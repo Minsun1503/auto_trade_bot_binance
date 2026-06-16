@@ -95,8 +95,9 @@ class EventBuffer:
 
     def flush_ready(self, current_time: int) -> List[BufferEvent]:
         """
-        Flush tất cả event đã "stable" (cũ hơn current_time - window_ms).
-        Cập nhật engine_watermark theo timestamp lớn nhất trong batch.
+        Flush tất cả event đã 'stable' (cũ hơn current_time - window_ms).
+        SAU KHI flush, watermark sẽ được Engine._flush_buffer cập nhật (không phải ở đây).
+        Buffer chỉ có nhiệm vụ sort và trả về — Engine quyết định commit timing.
         """
         ready = []
         while self.events:
@@ -105,10 +106,4 @@ class EventBuffer:
                 ready.append(heapq.heappop(self.events))
             else:
                 break
-
-        if ready:
-            max_ts = max(e.timestamp for e in ready)
-            if self.engine_watermark is None or max_ts > self.engine_watermark:
-                self.engine_watermark = max_ts
-
         return ready

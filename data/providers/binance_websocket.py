@@ -67,6 +67,7 @@ class BinanceWebSocketProvider(MarketDataProvider):
 
         self._last_message_time: float = 0.0
         self._reconnect_count = 0
+        self._on_connect_callback: Optional[Callable[[], None]] = None
 
     def subscribe(self, callback: Callable[[TickEvent], None]):
         self._callback = callback
@@ -163,6 +164,11 @@ class BinanceWebSocketProvider(MarketDataProvider):
     def _on_open(self, ws):
         self._last_message_time = time.time()
         logger.info(f"[WS] Kết nối thành công: {self.symbol}@kline_{self.interval}")
+        if self._on_connect_callback:
+            try:
+                self._on_connect_callback()
+            except Exception as e:
+                logger.error(f"[WS] Failed to invoke on_connect_callback: {e}")
 
     def _on_message(self, ws, message: str):
         self._last_message_time = time.time()

@@ -43,6 +43,16 @@ class TradingEngine:
         self.event_bus = None
         self.reconciliation_mode = ReconciliationMode.STRICT
         
+        # Load tolerances from config
+        from config.settings import load_settings_from_env
+        try:
+            settings = load_settings_from_env()
+            self.btc_epsilon = settings.portfolio.reconcile_btc_epsilon
+            self.usdt_epsilon = settings.portfolio.reconcile_usdt_epsilon
+        except Exception:
+            self.btc_epsilon = 1e-8
+            self.usdt_epsilon = 0.01
+        
         self.filled_orders_count = 0
         self._processed_trade_ids = set()
         self.peak_equity = initial_capital
@@ -148,6 +158,9 @@ class TradingEngine:
         )
         
     def on_order_filled(self, fill_event: FillEvent):
+        # Run Light Reconciliation
+        self.audit_light_reconciliation(fill_event)
+
         if fill_event.trade_id in self._processed_trade_ids:
             logger.warning(f"    [DUPLICATE FILL] Đã bỏ qua trade_id {fill_event.trade_id} cho order_id {fill_event.order_id}")
             return
@@ -178,15 +191,16 @@ class TradingEngine:
     def step(self, tick: TickEvent):
         if not tick.is_closed:
             return
-            
+
+        # Engine không tự tạo event_id.
+        # EventBuffer là authority duy nhất cho identity qua _make_dedup_key(symbol+ts+is_final).
         self.event_buffer.push(
             event_type="TICK",
             timestamp=tick.timestamp,
             payload=tick,
-            event_id=f"tick_{tick.timestamp}",
-            source_id="provider"
+            source_id=tick.source
         )
-        
+
         self._flush_buffer(tick.timestamp)
         
     def _flush_buffer(self, current_time: int):
@@ -196,10 +210,18 @@ class TradingEngine:
                 self._process_tick(ev.payload)
             elif ev.event_type == "FILL":
                 self.on_order_filled(ev.payload)
-                
-        # Reconcile AFTER the entire batch of ready events is processed (Eventual Consistency)
+
+        # Reconcile AFTER the entire batch is committed to Ledger
         if ready_events:
             self.audit_state_reconciliation()
+
+        # Watermark update AFTER Ledger commit — không update trước.
+        # Nếu update trước: late fill có thể bị reject dù hợp lệ.
+        # Nếu update sau: watermark chính xác phản ánh trạng thái đã commit.
+        if ready_events:
+            max_committed_ts = max(e.timestamp for e in ready_events)
+            if self.event_buffer.engine_watermark is None or max_committed_ts > self.event_buffer.engine_watermark:
+                self.event_buffer.engine_watermark = max_committed_ts
                 
     def _process_tick(self, tick: TickEvent):
         # We can still log with datetime for readability
@@ -273,6 +295,112 @@ class TradingEngine:
             else:
                 logger.error(f"Reconciliation Failed: {str(e)}. Triggering Emergency Stop.")
                 self.emergency_stop()
+
+    def audit_light_reconciliation(self, fill_event: FillEvent):
+        """
+        Light Reconciliation (Runs after every fill processed locally, < 1ms, no network calls)
+        """
+        logger.info(f"[LIGHT RECONCILE] Checking fill {fill_event.trade_id} for order {fill_event.order_id}")
+        
+        # 1. Check positive fill quantity
+        if fill_event.quantity <= 0:
+            raise ValueError(f"[LIGHT RECONCILE] Invalid non-positive fill quantity: {fill_event.quantity}")
+            
+        # 2. Check no negative position (Spot-only)
+        pos = self.ledger.rebuild_position(self.symbol)
+        if pos.quantity < -1e-8:
+            logger.critical(f"[LIGHT RECONCILE] Level 3 Critical Mismatch: Negative spot position: {pos.quantity}")
+            self.emergency_stop()
+            raise ValueError(f"[LIGHT RECONCILE] Level 3 Critical: Negative spot position: {pos.quantity}")
+
+    def audit_full_reconciliation(self):
+        """
+        Full Reconciliation (startup, restore, reconnect, and periodically via REST API)
+        """
+        logger.info("[FULL RECONCILE] Performing full exchange state reconciliation...")
+        
+        if not hasattr(self.execution_adapter, 'get_balances'):
+            logger.info("[FULL RECONCILE] Adapter does not support exchange balance querying. Skipping.")
+            return
+
+        # 1. Fetch Balances & Orders from Exchange
+        balances = self.execution_adapter.get_balances()
+        base_asset = self.symbol.split('/')[0]
+        quote_asset = self.symbol.split('/')[1]
+        
+        exchange_base_total = balances.get(base_asset, {}).get('total', 0.0)
+        exchange_quote_total = balances.get(quote_asset, {}).get('total', 0.0)
+
+        pos = self.ledger.rebuild_position(self.symbol)
+        ledger_base_qty = pos.quantity
+        ledger_quote_qty = self.ledger.cash
+
+        # 2. Rebuild Position from Exchange Trade History (Supremacy)
+        trades = self.execution_adapter.get_trade_history(self.symbol)
+        rebuilt_base_qty = 0.0
+        for t in trades:
+            qty = float(t['quantity'])
+            if t['side'] == 'BUY':
+                rebuilt_base_qty += qty
+            elif t['side'] == 'SELL':
+                rebuilt_base_qty -= qty
+
+        if abs(rebuilt_base_qty - ledger_base_qty) > self.btc_epsilon:
+            logger.critical(
+                f"[FULL RECONCILE] Level 3 Critical Mismatch: Position rebuilt from exchange trades ({rebuilt_base_qty:.8f}) "
+                f"differs from ledger position ({ledger_base_qty:.8f}). Overwriting ledger."
+            )
+            # Rebuild Supremacy: overwrite ledger
+            self.ledger.restore_position(self.symbol, rebuilt_base_qty, pos.avg_price)
+            self.emergency_stop()
+            return
+
+        # 3. Check Quantity and Cash tolerances (Level 2 Protect if >= epsilon)
+        base_diff = abs(ledger_base_qty - exchange_base_total)
+        quote_diff = abs(ledger_quote_qty - exchange_quote_total)
+
+        if (0 < base_diff < self.btc_epsilon) or (0 < quote_diff < self.usdt_epsilon):
+            logger.warning(
+                f"[FULL RECONCILE] Level 1 Warning: Minor asset balance drift (within tolerance). "
+                f"{base_asset} diff: {base_diff:.8f}, {quote_asset} diff: {quote_diff:.4f}"
+            )
+        elif base_diff >= self.btc_epsilon or quote_diff >= self.usdt_epsilon:
+            logger.error(
+                f"[FULL RECONCILE] Level 2 Protect: Significant asset mismatch! "
+                f"{base_asset}: Ledger={ledger_base_qty:.8f}, Exchange={exchange_base_total:.8f} (diff={base_diff:.8f} >= {self.btc_epsilon}). "
+                f"{quote_asset}: Ledger={ledger_quote_qty:.4f}, Exchange={exchange_quote_total:.4f} (diff={quote_diff:.4f} >= {self.usdt_epsilon})."
+            )
+            self.reconciliation_mode = ReconciliationMode.PROTECT
+            try:
+                self.cancel_all_orders()
+            except Exception:
+                pass
+            if self.event_bus:
+                self.event_bus.publish(CommandEvent(command="PAUSE"))
+                self.event_bus.publish(CommandEvent(command="SNAPSHOT"))
+
+        # 4. Order State Machine Matching
+        exchange_open_orders = {o['id']: o for o in self.execution_adapter.get_active_orders(self.symbol)}
+        tracked_orders = self.strategy.get_tracked_orders()
+        
+        from core.order_state import OrderState, map_order_state
+        for order_id in tracked_orders:
+            if order_id not in exchange_open_orders:
+                # If coordinator thinks it is active but it is filled on exchange
+                recent_filled_ids = {t['order_id'] for t in trades}
+                if order_id in recent_filled_ids:
+                    logger.error(
+                        f"[FULL RECONCILE] Level 2 Protect: Order {order_id} filled on Exchange but ACTIVE in Coordinator!"
+                    )
+                    self.reconciliation_mode = ReconciliationMode.PROTECT
+                    # Cancel all orders to protect account
+                    try:
+                        self.cancel_all_orders()
+                    except Exception:
+                        pass
+                    if self.event_bus:
+                        self.event_bus.publish(CommandEvent(command="PAUSE"))
+                        self.event_bus.publish(CommandEvent(command="SNAPSHOT"))
 
     def generate_result(self, start_date: datetime, end_date: datetime) -> BacktestResult:
         current_prices = {self.symbol: self.last_price}
