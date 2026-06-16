@@ -1,0 +1,48 @@
+DashboardApp {
+    layout: grid;
+    grid-size: 3 3;
+    grid-columns: 1fr 1fr 1fr;
+    grid-rows: 1fr 2fr;
+}
+
+StatusPanel {
+    column-span: 1;
+    row-span: 1;
+    border: solid green;
+    height: 100%;
+}
+
+HealthPanel {
+    column-span: 1;
+    row-span: 1;
+    border: solid yellow;
+    height: 100%;
+}
+
+EquityPanel {
+    column-span: 1;
+    row-span: 1;
+    border: solid blue;
+    height: 100%;
+}
+
+OrdersPanel {
+    column-span: 1;
+    row-span: 2;
+    border: solid cyan;
+    height: 100%;
+}
+
+TradesPanel {
+    column-span: 1;
+    row-span: 2;
+    border: solid magenta;
+    height: 100%;
+}
+
+LogsPanel {
+    column-span: 1;
+    row-span: 2;
+    border: solid white;
+    height: 100%;
+}

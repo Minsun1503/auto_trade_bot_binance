@@ -1,0 +1,51 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+.eggs/
+.Python
+env/
+venv/
+.venv/
+ENV/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+
+# Data & Storage (không push data thật lên git)
+data/storage/*.parquet
+data/storage/*.csv
+data/storage/*.json
+
+# Snapshots (state của bot, không push)
+snapshots/
+
+# Logs
+*.log
+logs/
+
+# Equity curve output
+equity_curve.csv
+
+# Environment & Secrets (QUAN TRỌNG: không bao giờ push key API)
+.env
+.env.*
+config/secrets.py
+secrets.json
+
+# Gemini / AI workspace
+.gemini/
+
+# Test cache
+.pytest_cache/
+htmlcov/
+.coverage
