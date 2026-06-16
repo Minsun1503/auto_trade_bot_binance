@@ -45,6 +45,21 @@ class BacktestExecutionAdapter(ExecutionAdapter):
         trade_id = f"mkt_{uuid.uuid4().hex[:8]}"
         order_id = f"ord_{uuid.uuid4().hex[:8]}"
         
+        ts_ms = int(timestamp.timestamp() * 1000) if isinstance(timestamp, datetime) else int(timestamp)
+        
+        # Thêm vào lịch sử trade
+        self.trade_history.append({
+            "trade_id": trade_id,
+            "order_id": order_id,
+            "symbol": symbol,
+            "side": side.upper(),
+            "price": current_price,
+            "quantity": quantity,
+            "fee_amount": fee_amount,
+            "fee_asset": self.fee_asset,
+            "timestamp": ts_ms
+        })
+        
         if self._on_fill_callback:
             fill = FillEvent(
                 trade_id=trade_id,
@@ -55,7 +70,7 @@ class BacktestExecutionAdapter(ExecutionAdapter):
                 quantity=quantity,
                 fee_amount=fee_amount if self.fee_asset == "USDT" else fee_amount * 0.002,
                 fee_asset=self.fee_asset,
-                timestamp=timestamp
+                timestamp=ts_ms
             )
             if self.delay_fills_ticks > 0:
                 self._delayed_fills.append((self.delay_fills_ticks, fill))

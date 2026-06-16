@@ -136,7 +136,9 @@ def generate_default_manifest(manifest_path: str):
         logger.info(f"Generated default manifest at {manifest_path}")
 
 def run_pipeline(sample_mode: bool = False, run_holdout: bool = False) -> int:
-    logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
+    logging.basicConfig(level=logging.WARNING, format="%(asctime)s [%(levelname)s] %(message)s")
+    logging.getLogger("").setLevel(logging.WARNING)
+    logger.setLevel(logging.INFO)
     
     project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     manifest_path = os.path.join(project_root, "strategy_manifest.json")
@@ -152,9 +154,9 @@ def run_pipeline(sample_mode: bool = False, run_holdout: bool = False) -> int:
     
     # Cấu hình grid chiến lược để validation
     grid_config = GridConfig(
-        levels=10,
-        upper_bound_pct=0.15,
-        lower_bound_pct=-0.15,
+        levels=100,
+        upper_bound_pct=0.01,
+        lower_bound_pct=-0.01,
         capital_allocation_pct=0.80
     )
     

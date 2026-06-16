@@ -179,9 +179,16 @@ def run_single_period_backtest(
     Chạy backtest trên 1 phân đoạn thời gian (có tính Warmup).
     """
     # Khởi tạo Strategy và Engine
+    import logging
+    logging.getLogger("backtest.engine").setLevel(logging.WARNING)
+    
     strategy_instance = strategy_class(strategy_config)
     strategy = StrategyAdapter(strategy_instance)
-    adapter = DummyAdapter()
+    
+    from backtest.adapters.backtest_execution import BacktestExecutionAdapter
+    from backtest.execution import ExecutionMode
+    adapter = BacktestExecutionAdapter(mode=ExecutionMode.CONSERVATIVE, fee_rate=0.001)
+    
     engine = TradingEngine(initial_capital=initial_capital, strategy=strategy, execution_adapter=adapter, symbol=symbol)
     
     # Cho phép Engine chạy trong chế độ bảo vệ/không dừng đột ngột nếu chỉ lệch nhẹ

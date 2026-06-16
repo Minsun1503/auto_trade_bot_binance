@@ -1,29 +1,32 @@
 # Strategy Validation & Risk Report
 
-- **Ngày chạy báo cáo**: 2026-06-16 23:13:18
+- **Ngày chạy báo cáo**: 2026-06-16 23:26:40
 - **Freeze Checksum**: `6c49010d9d9566cb3ae601c270da965b79f29b9fa13ff931fcc14b9515fcfb0b`
 - **Trạng thái Code Freeze Match**: `YES` (Đăng ký thành công)
-- **Chế độ kiểm thử**: `Sample-Only`
+- **Chế độ kiểm thử**: `Full 12-Month`
 - **Cổng kiểm duyệt cuối cùng**: `FAIL`
 
 ### Danh sách vi phạm (Violations):
-- ❌ FAIL: IS Bear Regime trades count 0 < 20 (IS minimum limit per regime).
+- ❌ FAIL: IS Bear Regime trades count 1 < 20 (IS minimum limit per regime).
 - ❌ FAIL: IS Recovery Regime trades count 0 < 20 (IS minimum limit per regime).
 - ❌ FAIL: IS Bull Regime trades count 0 < 20 (IS minimum limit per regime).
-- ❌ FAIL: Total IS trades count 0 < 100.
-- ❌ FAIL: OOS Sideways Regime trades count 0 < 30 (OOS sub-regime limit).
-- ❌ FAIL: OOS Sideways Regime Sortino 0.00 < 1.0.
-- ❌ FAIL: OOS Sideways Regime Profit Factor 0.00 < 1.1.
-- ❌ FAIL: OOS Mini-Bear Regime trades count 0 < 30 (OOS sub-regime limit).
-- ❌ FAIL: OOS Mini-Bear Regime Sharpe -8.63 < 0.7.
-- ❌ FAIL: OOS Mini-Bear Regime Sortino -41.68 < 1.0.
-- ❌ FAIL: OOS Mini-Bear Regime Profit Factor 0.00 < 1.1.
-- ❌ FAIL: OOS Mini-Bear Regime Recovery Factor -0.70 < 1.0.
-- ❌ FAIL: OOS Mini-Bear Regime Calmar Ratio -40.14 < 0.5.
-- ❌ FAIL: OOS Mini-Bear Regime Sharpe Degradation: -8.63 < 1.05 (50% of Median IS Sharpe).
-- ❌ FAIL: Holdout trades count 0 < 30.
-- ❌ FAIL: Holdout Sortino 0.00 < 1.0.
-- ❌ FAIL: Holdout Profit Factor 0.00 < 1.1.
+- ❌ FAIL: Total IS trades count 1 < 100.
+- ❌ FAIL: OOS Sideways Regime trades count 3 < 30 (OOS sub-regime limit).
+- ❌ FAIL: OOS Sideways Regime Sharpe -0.13 < 0.7.
+- ❌ FAIL: OOS Sideways Regime Sortino -0.20 < 1.0.
+- ❌ FAIL: OOS Sideways Regime Recovery Factor -0.14 < 1.0.
+- ❌ FAIL: OOS Sideways Regime Calmar Ratio -0.59 < 0.5.
+- ❌ FAIL: OOS Sideways Regime Sharpe Degradation: -0.13 < 1.26 (50% of Median IS Sharpe).
+- ❌ FAIL: OOS Mini-Bear Regime trades count 6 < 30 (OOS sub-regime limit).
+- ❌ FAIL: OOS Mini-Bear Regime Sharpe 0.43 < 0.7.
+- ❌ FAIL: OOS Mini-Bear Regime Sortino 0.69 < 1.0.
+- ❌ FAIL: OOS Mini-Bear Regime Recovery Factor 0.23 < 1.0.
+- ❌ FAIL: OOS Mini-Bear Regime Sharpe Degradation: 0.43 < 1.26 (50% of Median IS Sharpe).
+- ❌ FAIL: Holdout trades count 1 < 30.
+- ❌ FAIL: Holdout Sharpe -1.61 < 0.7.
+- ❌ FAIL: Holdout Sortino -2.56 < 1.0.
+- ❌ FAIL: Holdout Recovery Factor -0.64 < 1.0.
+- ❌ FAIL: Holdout Calmar Ratio -2.18 < 0.5.
 
 --- 
 
@@ -33,23 +36,23 @@
 
 | Chỉ số (Metric) | Chiến lược (Strategy) | Buy & Hold | Daily DCA |
 |---|---|---|---|
-| **ROI** | -1.65% | -2.97% | -4.06% |
-| **Sharpe (Annualized)** | -4.46 | -4.24 | -4.93 |
-| **Sortino (Annualized)** | -5.30 | -5.39 | -5.56 |
-| **Calmar Ratio** | -28.27 | -8.34 | -10.76 |
-| **Max Drawdown** | 2.49% | 10.66% | 8.84% |
-| **Recovery Factor** | -0.66 | -0.26 | -0.44 |
+| **ROI** | -27.55% | -38.13% | -6.61% |
+| **Sharpe (Annualized)** | -2.39 | -2.19 | -0.52 |
+| **Sortino (Annualized)** | -3.27 | -2.85 | -0.77 |
+| **Calmar Ratio** | -1.94 | -1.53 | -1.08 |
+| **Max Drawdown** | 37.42% | 55.89% | 22.25% |
+| **Recovery Factor** | -0.73 | -0.64 | -0.29 |
 | **Profit Factor** | 0.00 | N/A | N/A |
-| **Expectancy** | 0.00 | N/A | N/A |
-| **Exposure Ratio** | 85.71% | N/A | N/A |
-| **Trades Count** | 0 | N/A | N/A |
-| **Trades / Month** | 0.0 | N/A | N/A |
+| **Expectancy** | -1315.94 | N/A | N/A |
+| **Exposure Ratio** | 98.94% | N/A | N/A |
+| **Trades Count** | 1 | N/A | N/A |
+| **Trades / Month** | 0.3 | N/A | N/A |
 
 **Monte Carlo Drawdown (Strategy):**
-- Median Drawdown (P50): 0.00%
-- MC P95 Drawdown (độ bền rủi ro): 0.00%
-- MC P99 Drawdown (rủi ro đuôi): 0.00%
-- Worst Drawdown: 0.00%
+- Median Drawdown (P50): 13.16%
+- MC P95 Drawdown (độ bền rủi ro): 13.16%
+- MC P99 Drawdown (rủi ro đuôi): 13.16%
+- Worst Drawdown: 13.16%
 - Xác suất sụt giảm > 25% (Prob DD > 25%): 0.00%
 - Xác suất sụt giảm > 50% (Prob DD > 50%): 0.00%
 - Average Losing Streak (Block Size): 1.00 trades
@@ -60,15 +63,15 @@
 
 | Chỉ số (Metric) | Chiến lược (Strategy) | Buy & Hold | Daily DCA |
 |---|---|---|---|
-| **ROI** | 0.63% | 1.73% | 0.79% |
-| **Sharpe (Annualized)** | 9.15 | 11.56 | 9.59 |
-| **Sortino (Annualized)** | 36.46 | 96.54 | 59.91 |
-| **Calmar Ratio** | 298.46 | 204.39 | 86.11 |
-| **Max Drawdown** | 0.20% | 1.23% | 0.91% |
-| **Recovery Factor** | 3.21 | 1.38 | 0.86 |
+| **ROI** | 26.51% | 72.06% | 27.78% |
+| **Sharpe (Annualized)** | 3.58 | 4.19 | 2.84 |
+| **Sortino (Annualized)** | 7.13 | 8.52 | 5.32 |
+| **Calmar Ratio** | 17.64 | 37.02 | 10.70 |
+| **Max Drawdown** | 9.21% | 22.35% | 16.21% |
+| **Recovery Factor** | 2.27 | 1.83 | 1.31 |
 | **Profit Factor** | 0.00 | N/A | N/A |
 | **Expectancy** | 0.00 | N/A | N/A |
-| **Exposure Ratio** | 85.71% | N/A | N/A |
+| **Exposure Ratio** | 98.91% | N/A | N/A |
 | **Trades Count** | 0 | N/A | N/A |
 | **Trades / Month** | 0.0 | N/A | N/A |
 
@@ -87,15 +90,15 @@
 
 | Chỉ số (Metric) | Chiến lược (Strategy) | Buy & Hold | Daily DCA |
 |---|---|---|---|
-| **ROI** | 0.11% | 0.18% | -0.38% |
-| **Sharpe (Annualized)** | 2.10 | -6.77 | -6.75 |
-| **Sortino (Annualized)** | 23.07 | -11.85 | -9.66 |
-| **Calmar Ratio** | 19.19 | 4.90 | -10.39 |
-| **Max Drawdown** | 0.44% | 2.83% | 2.33% |
-| **Recovery Factor** | 0.25 | 0.06 | -0.16 |
+| **ROI** | 15.62% | 42.31% | 1.78% |
+| **Sharpe (Annualized)** | 2.52 | 2.62 | 0.38 |
+| **Sortino (Annualized)** | 4.61 | 4.08 | 0.48 |
+| **Calmar Ratio** | 9.34 | 16.47 | 0.45 |
+| **Max Drawdown** | 8.72% | 19.77% | 16.71% |
+| **Recovery Factor** | 1.42 | 1.24 | 0.09 |
 | **Profit Factor** | 0.00 | N/A | N/A |
 | **Expectancy** | 0.00 | N/A | N/A |
-| **Exposure Ratio** | 85.71% | N/A | N/A |
+| **Exposure Ratio** | 98.91% | N/A | N/A |
 | **Trades Count** | 0 | N/A | N/A |
 | **Trades / Month** | 0.0 | N/A | N/A |
 
@@ -114,17 +117,17 @@
 
 | Chỉ số (Metric) | Chiến lược (Strategy) | Buy & Hold | Daily DCA |
 |---|---|---|---|
-| **ROI** | 1.78% | 5.22% | 1.89% |
-| **Sharpe (Annualized)** | 14.40 | 16.24 | 19.88 |
-| **Sortino (Annualized)** | 0.00 | 999.00 | 999.00 |
-| **Calmar Ratio** | 4438.33 | 2273.10 | 253.21 |
-| **Max Drawdown** | 0.06% | 1.76% | 1.15% |
-| **Recovery Factor** | 29.54 | 2.80 | 1.60 |
-| **Profit Factor** | 0.00 | N/A | N/A |
-| **Expectancy** | 0.00 | N/A | N/A |
-| **Exposure Ratio** | 85.71% | N/A | N/A |
-| **Trades Count** | 0 | N/A | N/A |
-| **Trades / Month** | 0.0 | N/A | N/A |
+| **ROI** | -1.46% | -11.82% | -11.20% |
+| **Sharpe (Annualized)** | -0.13 | -0.83 | -1.41 |
+| **Sortino (Annualized)** | -0.20 | -1.22 | -1.83 |
+| **Calmar Ratio** | -0.59 | -1.35 | -2.18 |
+| **Max Drawdown** | 9.90% | 29.83% | 17.72% |
+| **Recovery Factor** | -0.14 | -0.34 | -0.62 |
+| **Profit Factor** | 999.00 | N/A | N/A |
+| **Expectancy** | 108.75 | N/A | N/A |
+| **Exposure Ratio** | 98.91% | N/A | N/A |
+| **Trades Count** | 3 | N/A | N/A |
+| **Trades / Month** | 1.0 | N/A | N/A |
 
 **Monte Carlo Drawdown (Strategy):**
 - Median Drawdown (P50): 0.00%
@@ -141,23 +144,23 @@
 
 | Chỉ số (Metric) | Chiến lược (Strategy) | Buy & Hold | Daily DCA |
 |---|---|---|---|
-| **ROI** | -0.68% | -1.38% | -0.03% |
-| **Sharpe (Annualized)** | -8.63 | 3.33 | 2.49 |
-| **Sortino (Annualized)** | -41.68 | 40.72 | 5.59 |
-| **Calmar Ratio** | -40.14 | -18.12 | -1.09 |
-| **Max Drawdown** | 0.98% | 3.52% | 2.06% |
-| **Recovery Factor** | -0.70 | -0.39 | -0.01 |
-| **Profit Factor** | 0.00 | N/A | N/A |
-| **Expectancy** | 0.00 | N/A | N/A |
-| **Exposure Ratio** | 85.71% | N/A | N/A |
-| **Trades Count** | 0 | N/A | N/A |
-| **Trades / Month** | 0.0 | N/A | N/A |
+| **ROI** | 1.28% | -5.29% | -3.77% |
+| **Sharpe (Annualized)** | 0.43 | -0.20 | -0.58 |
+| **Sortino (Annualized)** | 0.69 | -0.27 | -0.66 |
+| **Calmar Ratio** | 0.97 | -1.10 | -0.99 |
+| **Max Drawdown** | 5.38% | 17.81% | 14.47% |
+| **Recovery Factor** | 0.23 | -0.27 | -0.24 |
+| **Profit Factor** | 20.32 | N/A | N/A |
+| **Expectancy** | 60.88 | N/A | N/A |
+| **Exposure Ratio** | 98.94% | N/A | N/A |
+| **Trades Count** | 6 | N/A | N/A |
+| **Trades / Month** | 2.0 | N/A | N/A |
 
 **Monte Carlo Drawdown (Strategy):**
-- Median Drawdown (P50): 0.00%
-- MC P95 Drawdown (độ bền rủi ro): 0.00%
-- MC P99 Drawdown (rủi ro đuôi): 0.00%
-- Worst Drawdown: 0.00%
+- Median Drawdown (P50): 0.18%
+- MC P95 Drawdown (độ bền rủi ro): 0.38%
+- MC P99 Drawdown (rủi ro đuôi): 0.55%
+- Worst Drawdown: 0.57%
 - Xác suất sụt giảm > 25% (Prob DD > 25%): 0.00%
 - Xác suất sụt giảm > 50% (Prob DD > 50%): 0.00%
 - Average Losing Streak (Block Size): 1.00 trades
@@ -168,17 +171,17 @@
 
 | Chỉ số (Metric) | Chiến lược (Strategy) | Buy & Hold | Daily DCA |
 |---|---|---|---|
-| **ROI** | 2.48% | 7.09% | 3.84% |
-| **Sharpe (Annualized)** | 19.02 | 25.36 | 18.62 |
-| **Sortino (Annualized)** | 0.00 | 999.00 | 999.00 |
-| **Calmar Ratio** | 3463.95 | 9097.19 | 1541.56 |
-| **Max Drawdown** | 0.14% | 1.63% | 0.95% |
-| **Recovery Factor** | 16.77 | 4.03 | 3.85 |
-| **Profit Factor** | 0.00 | N/A | N/A |
-| **Expectancy** | 0.00 | N/A | N/A |
-| **Exposure Ratio** | 85.71% | N/A | N/A |
-| **Trades Count** | 0 | N/A | N/A |
-| **Trades / Month** | 0.0 | N/A | N/A |
+| **ROI** | -14.85% | -22.09% | -9.41% |
+| **Sharpe (Annualized)** | -1.61 | -1.53 | -1.23 |
+| **Sortino (Annualized)** | -2.56 | -2.10 | -1.81 |
+| **Calmar Ratio** | -2.18 | -1.66 | -2.28 |
+| **Max Drawdown** | 22.17% | 38.59% | 14.62% |
+| **Recovery Factor** | -0.64 | -0.51 | -0.64 |
+| **Profit Factor** | 999.00 | N/A | N/A |
+| **Expectancy** | 1924.97 | N/A | N/A |
+| **Exposure Ratio** | 98.91% | N/A | N/A |
+| **Trades Count** | 1 | N/A | N/A |
+| **Trades / Month** | 0.3 | N/A | N/A |
 
 **Monte Carlo Drawdown (Strategy):**
 - Median Drawdown (P50): 0.00%
@@ -193,7 +196,7 @@
 
 ## 2. Baseline & Phân Tích Tổng Hợp
 
-- **Median IS Sharpe Baseline**: `2.10` (Bằng Sharpe của regime Recovery/trung bình)
+- **Median IS Sharpe Baseline**: `2.52` (Bằng Sharpe của regime Recovery/trung bình)
 - **Holdout Verification**: `FAILED / NOT RUN`
 
 > [!NOTE]
