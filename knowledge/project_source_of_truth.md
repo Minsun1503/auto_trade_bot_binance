@@ -47,15 +47,29 @@
     - Trade Frequency (tần suất giao dịch theo ngày/tháng).
   - Hoàn thiện bộ unit test toàn diện `tests/test_metrics.py` bao phủ tất cả các hàm chỉ số toán học.
 
+- **Phase 3.5B: Benchmarks Module**:
+  - Cô lập hoàn toàn benchmarks khỏi TradingEngine dưới `backtest/benchmarks/`.
+  - Hoàn thiện `buy_hold.py` (tính toán hiệu suất của phương án Buy & Hold BTC).
+  - Hoàn thiện `daily_dca.py` (tính toán hiệu suất của DCA tích lũy BTC hàng ngày).
+  - Xây dựng bộ unit test đầy đủ `tests/test_benchmarks.py` để xác thực tính đúng đắn cho cả hai module benchmark.
+
+- **Phase 3.5C: Block Bootstrap Monte Carlo**:
+  - Hiện thực hóa `backtest/monte_carlo.py` sử dụng thuật toán Stationary Block Bootstrap.
+  - Tự động hóa tính toán block size trung bình dựa trên losing streak trung bình của In-Sample.
+  - Cố định random seed (seed = 42) để đảm bảo tính tái lập (reproducibility) 100% của các mô phỏng.
+  - Đo lường và kết xuất các phân vị Drawdown (P50, P95, P99, Worst) và các xác suất sụt giảm tài sản (Prob of DD > 25% và > 50%), đảm bảo an toàn vốn (Spot max 0.0 cap).
+  - Xây dựng unit test kiểm thử toàn diện trong `tests/test_monte_carlo.py`.
+
 ## 2. Những "đặc sản" logic vừa tìm thấy (Crucial Context)
 - **Clock Sync offset**: Bắt buộc lưu trữ `exchange_time_offset_ms` để đồng bộ hóa các lệnh gọi API có ký (signature) trong CCXT.
 - **Rebuild Supremacy**: Không tin Ledger khi đối chiếu chéo; danh sách lịch sử trade của sàn là sự thật tối cao nhất để sinh ra Position hiện tại.
 - **Tolerance Epsilon**: Epsilon dung sai phải lưu trữ tại config vì mỗi symbol (BTC vs DOGE) có bước giá và mức độ làm tròn khác nhau.
 - **Crypto-centric Metrics Annualization**: Đối với thị trường Crypto, hệ số chuẩn hóa theo năm là 365 ngày (thay vì 252 ngày như chứng khoán truyền thống).
+- **Spot Ruin Safety**: Trong mô phỏng Spot Monte Carlo, giá trị tài sản ròng tối thiểu được giới hạn ở 0.0 (không thể có nợ âm), giúp các thước đo drawdown không vượt quá 100% một cách phi thực tế.
 
 ## 3. Những việc còn dang dở (Next Steps)
-- **Phase 3.5B: Benchmarks Module**: Hiện thực hóa `buy_hold.py` và `daily_dca.py` độc lập dưới `backtest/benchmarks/`.
-- **Phase 3.5C: Block Bootstrap Monte Carlo**: Hiện thực hóa `backtest/monte_carlo.py` sử dụng Stationary Block Bootstrap dựa trên losing streak trung bình thực tế để giữ nguyên tương quan chuỗi thời gian.
 - **Phase 3.5D: Validation Runner**: Hiện thực hóa `backtest/validation.py` với các cổng Hard Gates, OOS Sharpe Degradation Gate, và cơ chế check SHA-256 Code Freeze qua `strategy_manifest.json`.
 - **Phase 3.5E: Reporter Integration**: Kết xuất báo cáo đối chiếu chéo ra file `strategy_validation_report.md` dạng Markdown hoàn chỉnh.
+
+
 
